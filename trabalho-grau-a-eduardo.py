@@ -2,8 +2,18 @@ capacidade_volume = 0
 capacidade_peso = 0
 peso_carregado = 0
 volume_carregado = 0
+menor_quantidade_por_parada = None
+maior_quantidade_por_parada = 0
+menor_peso_caminhao_por_parada = None
+maior_peso_caminhao_por_parada = 0
+maior_peso_excedente = 0
+maior_valor_excedente = 0
+valor_total_transportado = 0
+valor_total_excedente = 0
+seguro_peso_max = 0
 pacotes = []
 
+#Menu principal
 def menu():
     print("\n..:: MENU ::..\n")
     print("1 - Iniciar dia")
@@ -16,7 +26,9 @@ def menu():
     escolha = input("Escolha uma opção: ")
     return escolha
 
-def realizar_parada(pacotes, capacidade_peso, capacidade_volume, peso_carregado, volume_carregado):
+def realizar_parada():
+    global capacidade_peso, peso_carregado, volume_carregado, capacidade_volume, pacotes, menor_quantidade_por_parada, maior_quantidade_por_parada, maior_peso_caminhao_por_parada, menor_peso_caminhao_por_parada, maior_valor_excedente, maior_peso_excedente, valor_total_transportado, valor_total_excedente, seguro_peso_max
+    pacotes_carregados = 0
     while True:
         print("\n..:: MENU DA PARADA ::..\n")
         print("1 - Inserir pacote")
@@ -31,17 +43,28 @@ def realizar_parada(pacotes, capacidade_peso, capacidade_volume, peso_carregado,
             custo_transporte = peso_pacote * 1.50
             seguro_peso_max = capacidade_volume * 10
 
-            if peso_pacote > seguro_peso_max:
-                adicional_seguro = (peso_pacote - seguro_peso_max) * 0.80
-                resposta_seguro = input("Seguro excedente: R$ ", adicional_seguro, ". Aceita? (S/N): ")
-                if resposta_seguro.upper() != 'S':
+            #verifica se o pacote necessita de seguro extra
+            peso_a_ser_carregado = peso_carregado + peso_pacote
+            adicional_peso = 0
+            adicional_seguro = 0
+            if peso_a_ser_carregado > seguro_peso_max:
+                adicional_peso =  peso_a_ser_carregado - seguro_peso_max
+                adicional_seguro = adicional_peso * 0.80
+                resposta_seguro = input("Seguro excedente: R$ {:.2f}. Aceita? (S/N): ".format(adicional_seguro))
+                if resposta_seguro.upper() != "S":
                     print("Pacote não aceito.")
                     continue
             
-            if peso_carregado + peso_pacote <= capacidade_peso and volume_carregado + 1 <= capacidade_volume:
+            #verifica se o pacote pode ser aceito conforme os parâmetros inseridos
+            if peso_a_ser_carregado <= capacidade_peso and volume_carregado + 1 <= capacidade_volume:
                 pacotes.append((peso_pacote, valor_mercadoria))
                 peso_carregado += peso_pacote
                 volume_carregado += 1
+                pacotes_carregados += 1
+                maior_peso_excedente = max(maior_peso_excedente, adicional_peso)
+                maior_valor_excedente = max(maior_valor_excedente, adicional_seguro)
+                valor_total_transportado += valor_mercadoria
+                valor_total_excedente = adicional_seguro
                 print("Pacote aceito. Custo de transporte: R$ ", custo_transporte)
             else:
                 print("Pacote não aceito. Capacidade excedida.")
@@ -49,6 +72,7 @@ def realizar_parada(pacotes, capacidade_peso, capacidade_volume, peso_carregado,
         
         elif escolha_parada == "2":
             if pacotes:
+                #pop() vai inserir o pacote na última posição da lista
                 ultimo_pacote = pacotes.pop()
                 peso_pacote, _ = ultimo_pacote
                 peso_carregado -= peso_pacote
@@ -58,12 +82,24 @@ def realizar_parada(pacotes, capacidade_peso, capacidade_volume, peso_carregado,
                 print("Não há pacotes para retirar.")
         
         elif escolha_parada == "3":
+            maior_quantidade_por_parada = max(maior_quantidade_por_parada, pacotes_carregados)
+            if menor_quantidade_por_parada is None:
+                menor_quantidade_por_parada = pacotes_carregados
+            else:
+                menor_quantidade_por_parada = min(menor_quantidade_por_parada, pacotes_carregados)
+            
+            maior_peso_caminhao_por_parada = max(maior_peso_caminhao_por_parada, peso_carregado)
+            if menor_peso_caminhao_por_parada is None:
+                menor_peso_caminhao_por_parada = peso_carregado
+            else:
+                menor_peso_caminhao_por_parada = min(menor_peso_caminhao_por_parada, peso_carregado)
             print("Parada encerrada.")
             break
         else:
             print("Opção inválida. Tente novamente.")
 
-def consultar_situacao(capacidade_peso, peso_carregado, capacidade_volume, volume_carregado):
+def consultar_situacao():
+    global capacidade_peso, peso_carregado, volume_carregado, capacidade_volume, pacotes
     print("\nSituação do Caminhão:")
     print("Peso carregado: ", peso_carregado, " kg")
     print("Peso restante: ", capacidade_peso - peso_carregado, " kg")
@@ -71,32 +107,36 @@ def consultar_situacao(capacidade_peso, peso_carregado, capacidade_volume, volum
     print("Volume carregado: ", volume_carregado, " m³")
     print("Volume restante: ", capacidade_volume - volume_carregado, " m³")
     print("Volume máximo: ", capacidade_volume, " m³")
+    print("Valor transportado: ",valor_total_transportado )
+    print("Valor excedente ou restante: ", valor_total_excedente)
+    print("Valor padrão máximo: ",seguro_peso_max)
 
-def listar_pacotes(pacotes):
+def listar_pacotes():
+    global pacotes
     print("\nPacotes no Caminhão:")
+    #for vai descompactar as tuplas geradas pelo enumerate
     for i, pacote in enumerate(pacotes):
         peso, _ = pacote
         print("Pacote ", i + 1, ": Peso", peso, " kg")
 
-def gerar_relatorio(pacotes):
+def gerar_relatorio():
+    global pacotes, maior_quantidade_por_parada, menor_quantidade_por_parada, maior_peso_caminhao_por_parada, menor_peso_caminhao_por_parada
     if not pacotes:
         print("Não há pacotes para gerar relatório.")
         return
     
     menor_peso = min(p[0] for p in pacotes)
     maior_peso = max(p[0] for p in pacotes)
-    menor_quantidade = min(len(pacotes), key=lambda x: len(x))
-    maior_quantidade = max(len(pacotes), key=lambda x: len(x))
-    menor_peso_total = min(sum(p[0] for p in pacotes))
-    maior_peso_total = max(sum(p[0] for p in pacotes))
     
     print("\n..:: RELATÓRIO DO DIA ::..\n")
-    print("Menor peso de pacote individual transportado: ", menor_peso, " kg")
+    print("Menor peso de pacote individual transportado: {} kg".format(menor_peso))
     print("Maior peso de pacote individual transportado: ", maior_peso, " kg")
-    print("Menor quantidade de pacotes embarcados em uma parada: ", menor_quantidade)
-    print("Maior quantidade de pacotes embarcados em uma parada: ", maior_quantidade)
-    print("Menor quantidade total de peso no caminhão ao encerrar parada: ", menor_peso_total, " Kg")
-    print("Maior quantidade total de peso no caminhão ao encerrar parada: ", maior_peso_total, " Kg")
+    print("Menor quantidade de pacotes embarcados em uma parada: ", menor_quantidade_por_parada)
+    print("Maior quantidade de pacotes embarcados em uma parada: ", maior_quantidade_por_parada)
+    print("Menor quantidade total de peso no caminhão ao encerrar parada: ", menor_peso_caminhao_por_parada , " Kg")
+    print("Maior quantidade total de peso no caminhão ao encerrar parada: ", maior_peso_caminhao_por_parada, " Kg")
+    print("Maior peso excedente durante todo dia: ", maior_peso_excedente , " Kg")
+    print("Maior valor excedente durante todo dia: R$ ", maior_valor_excedente)
 
 while True:
     escolha = menu()
@@ -112,19 +152,19 @@ while True:
         if capacidade_volume == 0:
             print("Erro: Dia não iniciado. Primeiro, inicie o dia.")
         else:
-            realizar_parada(pacotes, capacidade_peso, capacidade_volume, peso_carregado, volume_carregado)
+            realizar_parada()
         
     elif escolha == "3":
-        consultar_situacao(capacidade_peso, peso_carregado, capacidade_volume, volume_carregado)
+        consultar_situacao()
         
     elif escolha == "4":
-        listar_pacotes(pacotes)
+        listar_pacotes()
         
     elif escolha == "5":
         print("Dia finalizado.")
         
     elif escolha == "6":
-        gerar_relatorio(pacotes)
+        gerar_relatorio()
         
     elif escolha == "7":
         print("Programa encerrado.")
